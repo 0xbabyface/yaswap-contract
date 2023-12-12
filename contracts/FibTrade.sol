@@ -2,10 +2,16 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./YaswapStorage.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "./FibTradeStorage.sol";
 
-contract YaswapAgent is Ownable, YaswapStorage {
+contract FibTrade is AccessControl, FibTradeStorage {
+    bytes32 public constant OwnerRole = keccak256("FibTrade.owner");
+    bytes32 public constant AdminRole = keccak256("FibTrade.admin");
+    bytes32 public constant SignerRole = keccak256("FibTrade.signer");
+
     struct SwapParams {
         address fromToken;             // from erc20 token
         address toToken;               // to erc20 token
@@ -14,6 +20,8 @@ contract YaswapAgent is Ownable, YaswapStorage {
         bytes   dexCalldata;           // calldata of dex trading
         address receiver;              // receiver account
         uint256 minOutAmount;         // minimal output of totoken which receiver shold received
+        bytes   inviteCode;
+        bytes   signature;
     }
 
     event TokenSwapped(
@@ -21,20 +29,52 @@ contract YaswapAgent is Ownable, YaswapStorage {
         address fromToken,
         address toToken,
         uint256 fromTokenAmount,
-        uint256 requiredOutput,
-        uint256 actualOutput
+        uint256 minOutAmount,
+        uint256 actualOutput,
+        uint256 feeAmount
     );
 
-    constructor() Ownable(msg.sender) {}
+    event FeeRatioSet(uint256 newFee, uint256 oldFee);
+    event FeeDiscountSet(uint256 newDiscount, uint256 oldDiscount);
 
-    function initialize(address _owner) external {
+    constructor() {}
+
+    function initialize(address _owner, address _admin) external {
         require(!initialized, "init only once");
-        _transferOwnership(_owner);
+        _grantRole(OwnerRole, _owner);
+        _grantRole(AdminRole, _admin);
         feeRatio = 0.05E18;
+        feeDiscount = 0.9E18;
     }
 
-    function setFeeRatio(uint256 ratio) external onlyOwner {
+    function setRole(bytes32 role, address account, bool toGrant)
+        external
+        onlyRole(OwnerRole)
+    {
+        require(
+            role == AdminRole || role == OwnerRole,
+            "not support role"
+        );
+
+        if (toGrant) {
+            _grantRole(role, account);
+        } else {
+            _revokeRole(role, account);
+        }
+    }
+
+    function setFeeRatio(uint256 ratio) external onlyRole(AdminRole) {
+        uint256 oldFee = feeRatio;
         feeRatio = ratio;
+
+        emit FeeRatioSet(ratio, oldFee);
+    }
+
+    function setFeeDiscount(uint256 ratio) external onlyRole(AdminRole) {
+        uint256 oldFee = feeDiscount;
+        feeDiscount = ratio;
+
+        emit FeeDiscountSet(ratio, oldFee);
     }
     /**
     * @notice withdraw fee or any other tokens from this contract to recepient
@@ -44,7 +84,7 @@ contract YaswapAgent is Ownable, YaswapStorage {
     */
     function withdraw(address erc20Address, uint256 amount, address recepient)
         external
-        onlyOwner
+        onlyRole(OwnerRole)
     {
         IERC20 erc20Token = IERC20(erc20Address);
 
@@ -71,7 +111,19 @@ contract YaswapAgent is Ownable, YaswapStorage {
         IERC20 fromToken = IERC20(params.fromToken);
         IERC20 toToken   = IERC20(params.toToken);
 
-        uint256 totalFromToken = params.fromTokenAmount * (RatioPrecision + feeRatio) / RatioPrecision;
+        uint256 feeAmount = params.fromTokenAmount * feeRatio / RatioPrecision;
+        if (params.inviteCode.length != 0) {
+            address signer = ECDSA.recover(
+                keccak256(params.inviteCode),
+                params.signature
+            );
+            // if signed by singer, then make a discount for fee
+            if (hasRole(SignerRole, signer)) {
+                feeAmount = feeAmount * feeDiscount / RatioPrecision;
+            }
+        }
+
+        uint256 totalFromToken = params.fromTokenAmount  + feeAmount;
         fromToken.transferFrom(msg.sender, address(this), totalFromToken);
 
         uint256 receiverBalanceBefore = toToken.balanceOf(params.receiver);
@@ -93,7 +145,8 @@ contract YaswapAgent is Ownable, YaswapStorage {
             params.toToken,
             params.fromTokenAmount,
             params.minOutAmount,
-            actualOutput
+            actualOutput,
+            feeAmount
         );
     }
 }

@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
 
-contract YaswapProxy is ERC1967Proxy {
+contract FibTradeProxy is ERC1967Proxy {
     event OwnershipTransfered(address indexed oldAdmin, address indexed newAdmin);
 
     modifier onlyAdmin() {
