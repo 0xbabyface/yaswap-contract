@@ -53,7 +53,7 @@ contract FibTrade is AccessControl, FibTradeStorage {
         onlyRole(OwnerRole)
     {
         require(
-            role == AdminRole || role == OwnerRole,
+            role == AdminRole || role == OwnerRole || role == SignerRole,
             "not support role"
         );
 
