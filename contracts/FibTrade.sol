@@ -25,6 +25,7 @@ contract FibTrade is AccessControl, FibTradeStorage {
     }
 
     event TokenSwapped(
+        address indexed maker,
         address indexed receiver,
         address fromToken,
         address toToken,
@@ -140,6 +141,7 @@ contract FibTrade is AccessControl, FibTradeStorage {
         );
 
         emit TokenSwapped(
+            msg.sender,
             params.receiver,
             params.fromToken,
             params.toToken,
