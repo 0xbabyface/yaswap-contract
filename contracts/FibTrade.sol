@@ -115,7 +115,7 @@ contract FibTrade is AccessControl, FibTradeStorage {
         uint256 feeAmount = params.fromTokenAmount * feeRatio / RatioPrecision;
         if (params.inviteCode.length != 0) {
             address signer = ECDSA.recover(
-                keccak256(params.inviteCode),
+                keccak256(abi.encode(msg.sender, params.inviteCode)),
                 params.signature
             );
             // if signed by singer, then make a discount for fee
