@@ -1,22 +1,23 @@
 import { ethers } from "hardhat";
 
 async function main() {
-  const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-  const unlockTime = currentTimestampInSeconds + 60;
 
-  const lockedAmount = ethers.parseEther("0.001");
+  const [owner] = await ethers.getSigners();
 
-  const lock = await ethers.deployContract("Lock", [unlockTime], {
-    value: lockedAmount,
-  });
+  const fibTrade = await ethers.deployContract("FibTrade");
+  await fibTrade.waitForDeployment();
 
-  await lock.waitForDeployment();
+  const initData = fibTrade.interface.encodeFunctionData("initialize", [owner.address, owner.address]);
 
-  console.log(
-    `Lock with ${ethers.formatEther(
-      lockedAmount
-    )}ETH and unlock timestamp ${unlockTime} deployed to ${lock.target}`
-  );
+  const fibProxy = await ethers.deployContract("FibTradeProxy", [fibTrade.target, initData, owner.address]);
+  await fibProxy.waitForDeployment();
+
+  console.log(`
+    {
+      "fibTrade": "${fibTrade.target}",
+      "fibProxy": "${fibProxy.target}"
+    }
+  `)
 }
 
 // We recommend this pattern to be able to use async/await everywhere
