@@ -5,6 +5,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+
 import "./FibTradeStorage.sol";
 
 contract FibTrade is AccessControl, FibTradeStorage {
@@ -137,7 +139,7 @@ contract FibTrade is AccessControl, FibTradeStorage {
         if (params.inviteCode.length != 0) {
             bytes32 hash = keccak256(abi.encode(msg.sender, params.inviteCode));
             bytes32 digest = MessageHashUtils.toEthSignedMessageHash(hash);
-            address signer = ECDSA.recover(digest, signature);
+            address signer = ECDSA.recover(digest, params.signature);
 
             // if signed by singer, then make a discount for fee
             if (hasRole(SignerRole, signer)) {
