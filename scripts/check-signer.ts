@@ -10,7 +10,7 @@ async function main() {
   const enc = new TextEncoder();
   const inviteCode = enc.encode("123456aABbCc");
 
-  const abiEncoder = new ethers.AbiCoder();
+  const abiEncoder = ethers.AbiCoder.defaultAbiCoder();
   const message = abiEncoder.encode(['address', 'bytes'], [owner.address, inviteCode]);
   const hash = ethers.keccak256(message);
 

@@ -7,7 +7,7 @@ async function main() {
   const fibTrade = await ethers.deployContract("FibTrade");
   await fibTrade.waitForDeployment();
 
-  const initData = fibTrade.interface.encodeFunctionData("initialize", [owner.address, owner.address]);
+  const initData = fibTrade.interface.encodeFunctionData("initialize", [owner.address, owner.address, "0xEA156a8A29fc61999C079BCc9906a7e0bd8c0E4E"]);
 
   const fibProxy = await ethers.deployContract("FibTradeProxy", [fibTrade.target, initData, owner.address]);
   await fibProxy.waitForDeployment();

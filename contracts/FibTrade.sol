@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+// import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 import "./FibTradeStorage.sol";
 
@@ -58,6 +58,8 @@ contract FibTrade is AccessControl, FibTradeStorage {
 
         feeRatio = 0.05E18;
         feeDiscount = 0.9E18;
+
+        initialized = true;
     }
 
     function setRole(bytes32 role, address account, bool toGrant)
@@ -125,7 +127,7 @@ contract FibTrade is AccessControl, FibTradeStorage {
     * @notice to execute the swap operation
     * @param params a struct of trading pair
      */
-    function swap(SwapParams memory params) external payable {
+    function swap(SwapParams calldata params) external payable {
         require(
             params.fromTokenAmount > 0,
             "trade amount is 0"
@@ -138,8 +140,8 @@ contract FibTrade is AccessControl, FibTradeStorage {
         uint256 feeAmount = params.fromTokenAmount * feeRatio / RatioPrecision;
         if (params.inviteCode.length != 0) {
             bytes32 hash = keccak256(abi.encode(msg.sender, params.inviteCode));
-            bytes32 digest = MessageHashUtils.toEthSignedMessageHash(hash);
-            address signer = ECDSA.recover(digest, params.signature);
+            bytes32 digest = ECDSA.toEthSignedMessageHash(hash);
+            (address signer, ) = ECDSA.tryRecover(digest, params.signature);
 
             // if signed by singer, then make a discount for fee
             if (hasRole(SignerRole, signer)) {
@@ -166,7 +168,7 @@ contract FibTrade is AccessControl, FibTradeStorage {
         );
     }
 
-    function swapNativeToken(SwapParams memory params, uint256 feeAmount) internal returns(uint256) {
+    function swapNativeToken(SwapParams calldata params, uint256 feeAmount) internal returns(uint256) {
 
         require(msg.value >= params.fromTokenAmount + feeAmount, "paied not enough value");
 
@@ -184,7 +186,7 @@ contract FibTrade is AccessControl, FibTradeStorage {
         return actualOutput;
     }
 
-    function swapErc20(SwapParams memory params, uint256 feeAmount) internal returns(uint256) {
+    function swapErc20(SwapParams calldata params, uint256 feeAmount) internal returns(uint256) {
         require(
             params.approveAddress != address(0),
             "approve address is null"

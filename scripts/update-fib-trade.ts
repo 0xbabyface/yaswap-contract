@@ -7,6 +7,8 @@ async function main() {
   const fibTrade = await ethers.deployContract('FibTrade');
   await fibTrade.waitForDeployment();
 
+  console.log(`fibTrade: ${fibTrade.target}`);
+
   const fibProxy = await ethers.getContractAt("FibTradeProxy", config.polygon.fibProxy);
 
   let tx = await fibProxy.connect(owner).setImplementation(fibTrade.target, "0x");

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.9;
 
 contract FibTradeStorage {
     uint256 constant RatioPrecision = 1e18;
