@@ -52,6 +52,7 @@ contract FibTrade is AccessControl, FibTradeStorage {
 
     function initialize(address _owner, address _admin, address _signer) external {
         require(!initialized, "init only once");
+
         _grantRole(OwnerRole, _owner);
         _grantRole(AdminRole, _admin);
         _grantRole(SignerRole, _signer);
@@ -172,16 +173,20 @@ contract FibTrade is AccessControl, FibTradeStorage {
 
         require(msg.value >= params.fromTokenAmount + feeAmount, "paied not enough value");
 
-        uint256 receiverBalanceBefore = params.receiver.balance;
+        uint256 receiverBalanceBefore = address(this).balance;
+
         (bool success, bytes memory reason) = params.dexAddress.call{value: params.fromTokenAmount}(params.dexCalldata);
         require(success, string(reason));
 
-        uint256 receiverBalanceAfter = params.receiver.balance;
+        uint256 receiverBalanceAfter = address(this).balance;
+
         uint256 actualOutput = receiverBalanceAfter - receiverBalanceBefore;
         require(
             actualOutput >= params.minOutAmount,
             "output less than required"
         );
+
+        payable(params.receiver).transfer(actualOutput);
 
         return actualOutput;
     }
@@ -192,21 +197,27 @@ contract FibTrade is AccessControl, FibTradeStorage {
             "approve address is null"
         );
 
+        IERC20 fromToken = IERC20(params.fromToken);
+        IERC20 toToken   = IERC20(params.toToken);
+
         uint256 totalFromToken = params.fromTokenAmount  + feeAmount;
-        IERC20(params.fromToken).transferFrom(msg.sender, address(this), totalFromToken);
+        fromToken.transferFrom(msg.sender, address(this), totalFromToken);
 
-        uint256 receiverBalanceBefore = IERC20(params.toToken).balanceOf(params.receiver);
+        uint256 receiverBalanceBefore = toToken.balanceOf(address(this));
 
-        IERC20(params.fromToken).approve(params.approveAddress, params.fromTokenAmount);
+        fromToken.approve(params.approveAddress, params.fromTokenAmount);
         (bool success, bytes memory reason) = params.dexAddress.call(params.dexCalldata);
         require(success, string(reason));
 
-        uint256 receiverBalanceAfter = IERC20(params.toToken).balanceOf(params.receiver);
+        uint256 receiverBalanceAfter = toToken.balanceOf(address(this));
+
         uint256 actualOutput = receiverBalanceAfter - receiverBalanceBefore;
         require(
             actualOutput >= params.minOutAmount,
             "output less than required"
         );
+
+        toToken.transfer(params.receiver, actualOutput);
 
         return actualOutput;
     }
