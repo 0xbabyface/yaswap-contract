@@ -2,6 +2,7 @@
 {
     "polygon": {
       "fibTrade": "0xfCC6234F23d6ACf6f488E1AA3EED29Ba2877dbAa",
-      "fibProxy": "0x81a3d9217fb8769D24e431A0D5AbdDA2C0634D05"
+      "fibProxy": "0x81a3d9217fb8769D24e431A0D5AbdDA2C0634D05",
+      "checkSign": "0xaCe9dacCaa845Ff6d41E773B08d4f47faaDD900b"
     }
 }
