@@ -26,7 +26,8 @@ contract FibTrade is AccessControl, FibTradeStorage {
         address approveAddress;        // approve address to transfer trade token
         uint256 minOutAmount;         // minimal output of totoken which receiver shold received
         bytes   inviteCode;
-        bytes   signature;
+        // bytes   signature;
+        uint8 v; bytes32 r; bytes32 s; // signature
     }
 
     event TokenSwapped(
@@ -142,8 +143,8 @@ contract FibTrade is AccessControl, FibTradeStorage {
         if (params.inviteCode.length != 0) {
             bytes32 hash = keccak256(abi.encode(msg.sender, params.inviteCode));
             bytes32 digest = ECDSA.toEthSignedMessageHash(hash);
-            (address signer, ) = ECDSA.tryRecover(digest, params.signature);
-
+            // (address signer, ) = ECDSA.tryRecover(digest, params.v, params.r, params.s);
+            address signer = ECDSA.recover(digest, params.v, params.r, params.s);
             // if signed by singer, then make a discount for fee
             if (hasRole(SignerRole, signer)) {
                 feeAmount = feeAmount * feeDiscount / RatioPrecision;
