@@ -5,7 +5,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-// import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 import "./FibTradeStorage.sol";
 
@@ -111,6 +110,14 @@ contract FibTrade is AccessControl, FibTradeStorage {
         erc20Token.transfer(recepient, amount);
     }
 
+    function withdrawNative(uint256 amount, address recepient)
+        external
+        onlyRole(OwnerRole)
+    {
+        require(address(this).balance >= amount, "not enough balance");
+        payable(recepient).transfer(amount);
+    }
+
     /**
     * @dev to estimate fee amount with specific from token amount
     * @param fromTokenAmount amount of from token
@@ -143,7 +150,6 @@ contract FibTrade is AccessControl, FibTradeStorage {
         if (params.inviteCode.length != 0) {
             bytes32 hash = keccak256(abi.encode(msg.sender, params.inviteCode));
             bytes32 digest = ECDSA.toEthSignedMessageHash(hash);
-            // (address signer, ) = ECDSA.tryRecover(digest, params.v, params.r, params.s);
             address signer = ECDSA.recover(digest, params.v, params.r, params.s);
             // if signed by singer, then make a discount for fee
             if (hasRole(SignerRole, signer)) {
@@ -152,10 +158,14 @@ contract FibTrade is AccessControl, FibTradeStorage {
         }
 
         uint256 actualOutput;
-        if (params.fromToken == NativeToken) {
-            actualOutput = swapNativeToken(params, feeAmount);
+        if (params.fromToken == NativeToken && params.toToken != NativeToken) {
+            actualOutput = swapNativeToErc20(params, feeAmount);
+        } else if (params.fromToken != NativeToken && params.toToken == NativeToken) {
+            actualOutput = swapErc20ToNative(params, feeAmount);
+        } else if (params.fromToken != NativeToken && params.toToken != NativeToken) {
+            actualOutput = swapErc20ToErc20(params, feeAmount);
         } else {
-            actualOutput = swapErc20(params, feeAmount);
+            require(false, "not swap native to native");
         }
 
         emit TokenSwapped(
@@ -170,13 +180,21 @@ contract FibTrade is AccessControl, FibTradeStorage {
         );
     }
 
-    function swapNativeToken(SwapParams calldata params, uint256 feeAmount) internal returns(uint256) {
+    function swapErc20ToNative(SwapParams calldata params, uint256 feeAmount) internal returns(uint256) {
+        require(
+            params.approveAddress != address(0),
+            "approve address is null"
+        );
 
-        require(msg.value >= params.fromTokenAmount + feeAmount, "paied not enough value");
+        IERC20 fromToken = IERC20(params.fromToken);
+
+        uint256 totalFromToken = params.fromTokenAmount  + feeAmount;
+        fromToken.transferFrom(msg.sender, address(this), totalFromToken);
 
         uint256 receiverBalanceBefore = address(this).balance;
 
-        (bool success, bytes memory reason) = params.dexAddress.call{value: params.fromTokenAmount}(params.dexCalldata);
+       fromToken.approve(params.approveAddress, params.fromTokenAmount);
+        (bool success, bytes memory reason) = params.dexAddress.call(params.dexCalldata);
         require(success, string(reason));
 
         uint256 receiverBalanceAfter = address(this).balance;
@@ -192,7 +210,31 @@ contract FibTrade is AccessControl, FibTradeStorage {
         return actualOutput;
     }
 
-    function swapErc20(SwapParams calldata params, uint256 feeAmount) internal returns(uint256) {
+    function swapNativeToErc20(SwapParams calldata params, uint256 feeAmount) internal returns(uint256) {
+
+        require(msg.value >= params.fromTokenAmount + feeAmount, "paied not enough value");
+
+        IERC20 toToken = IERC20(params.toToken);
+
+        uint256 receiverBalanceBefore = toToken.balanceOf(address(this));
+
+        (bool success, bytes memory reason) = params.dexAddress.call{value: params.fromTokenAmount}(params.dexCalldata);
+        require(success, string(reason));
+
+        uint256 receiverBalanceAfter = toToken.balanceOf(address(this));
+
+        uint256 actualOutput = receiverBalanceAfter - receiverBalanceBefore;
+        require(
+            actualOutput >= params.minOutAmount,
+            "output less than required"
+        );
+
+        toToken.transfer(params.receiver, actualOutput);
+
+        return actualOutput;
+    }
+
+    function swapErc20ToErc20(SwapParams calldata params, uint256 feeAmount) internal returns(uint256) {
         require(
             params.approveAddress != address(0),
             "approve address is null"
