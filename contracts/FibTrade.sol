@@ -168,6 +168,11 @@ contract FibTrade is AccessControl, FibTradeStorage {
             require(false, "not swap native to native");
         }
 
+        require(
+            actualOutput >= params.minOutAmount,
+            "output less than required"
+        );
+
         emit TokenSwapped(
             msg.sender,
             params.receiver,
@@ -200,10 +205,6 @@ contract FibTrade is AccessControl, FibTradeStorage {
         uint256 receiverBalanceAfter = address(this).balance;
 
         uint256 actualOutput = receiverBalanceAfter - receiverBalanceBefore;
-        require(
-            actualOutput >= params.minOutAmount,
-            "output less than required"
-        );
 
         payable(params.receiver).transfer(actualOutput);
 
@@ -224,10 +225,6 @@ contract FibTrade is AccessControl, FibTradeStorage {
         uint256 receiverBalanceAfter = toToken.balanceOf(address(this));
 
         uint256 actualOutput = receiverBalanceAfter - receiverBalanceBefore;
-        require(
-            actualOutput >= params.minOutAmount,
-            "output less than required"
-        );
 
         toToken.transfer(params.receiver, actualOutput);
 
@@ -255,10 +252,6 @@ contract FibTrade is AccessControl, FibTradeStorage {
         uint256 receiverBalanceAfter = toToken.balanceOf(address(this));
 
         uint256 actualOutput = receiverBalanceAfter - receiverBalanceBefore;
-        require(
-            actualOutput >= params.minOutAmount,
-            "output less than required"
-        );
 
         toToken.transfer(params.receiver, actualOutput);
 
