@@ -63,6 +63,12 @@ contract FibTrade is AccessControl, FibTradeStorage {
         initialized = true;
     }
 
+    function setFibRelationship(IFibRelationship relations) external onlyRole(AdminRole) {
+        require(address(relations) != address(0), "invalid address");
+
+        fibRealtions = relations;
+    }
+
     function setRole(bytes32 role, address account, bool toGrant)
         external
         onlyRole(OwnerRole)
@@ -154,6 +160,9 @@ contract FibTrade is AccessControl, FibTradeStorage {
             // if signed by singer, then make a discount for fee
             if (hasRole(SignerRole, signer)) {
                 feeAmount = feeAmount * feeDiscount / RatioPrecision;
+
+                (address codeOwner, /*bytes memory code*/) = abi.decode(params.inviteCode, (address, bytes));
+                fibRealtions.addRelation(codeOwner, msg.sender);
             }
         }
 
