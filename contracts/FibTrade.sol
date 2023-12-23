@@ -231,9 +231,12 @@ contract FibTrade is AccessControl, FibTradeStorage {
         );
 
         if (feeAmount > 0) {
-            uint256 rebateAmount = feeAmount * rebateRatio / RatioPrecision;
+            uint256 rebateAmount;
             (uint256 level, address[] memory fathers) = fibRealtions.getParents(msg.sender, rebateLevel);
-            dispatchRewards(level, fathers, params.fromToken, rebateAmount);
+            if (level > 0) {
+                rebateAmount = feeAmount * rebateRatio / RatioPrecision;
+                dispatchRewards(level, fathers, params.fromToken, rebateAmount);
+            }
 
             traderRewards[address(this)][params.fromToken] += (feeAmount - rebateAmount);
         }
@@ -333,11 +336,11 @@ contract FibTrade is AccessControl, FibTradeStorage {
         }
     }
 
-    function fibDispatchRatio(uint256 len) internal pure returns(uint256[] memory) {
-        uint256[] memory ratios = new uint256[](len);
-             if (len == 1) { ratios[0] = uint256(1E18); }
-        else if (len == 2) { ratios[0] = uint256(0.6E18); ratios[1] = uint256(0.4E18);}
-        else if (len == 3) { ratios[0] = uint256(0.5E18); ratios[1] = uint256(0.3E18); ratios[2] = uint256(0.2E18);}
+    function fibDispatchRatio(uint256 level) internal pure returns(uint256[] memory) {
+        uint256[] memory ratios = new uint256[](level);
+             if (level == 1) { ratios[0] = uint256(1E18); }
+        else if (level == 2) { ratios[0] = uint256(0.6E18); ratios[1] = uint256(0.4E18);}
+        else if (level == 3) { ratios[0] = uint256(0.5E18); ratios[1] = uint256(0.3E18); ratios[2] = uint256(0.2E18);}
         else {
             // TODO: should revert here???
         }

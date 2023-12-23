@@ -42,18 +42,16 @@ contract FibRelationship is IFibRelationship {
 
     function getParents(address son, uint256 upLevel) external override view returns(uint256 count, address[] memory fathers) {
         fathers = new address[](upLevel);
-        if (relations[son].father == address(0)) return (count, fathers);
-
-        address node = son;
+        address currentNode = son;
         for (uint i = 0; i < upLevel; ++i) {
-            address father = relations[node].father;
-
-            if (father == Ancestor) break;
+            address father = relations[currentNode].father;
+            // some node may not on the node tree, to judge address(0)
+            if (father == Ancestor || father == address(0)) break;
 
             fathers[i] = father;
             ++count;
 
-            node = father;
+            currentNode = father;
         }
     }
 }

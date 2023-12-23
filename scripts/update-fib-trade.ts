@@ -2,6 +2,22 @@ import { ethers } from "hardhat";
 
 import * as config from "../deployed-info.json";
 
+async function updateSettings() {
+  const fib = await ethers.getContractAt('FibTrade', config.polygon.fibProxy);
+
+  let tx = await fib.setRebateLevel(3);
+  await tx.wait();
+
+  tx = await fib.setRebateRatio(ethers.parseEther("0.2"));
+  await tx.wait();
+
+  const Relationship = await ethers.deployContract('FibRelationship', [config.polygon.fibProxy]);
+  await Relationship.waitForDeployment();
+
+  tx = await fib.setFibRelationship(Relationship.target);
+  await tx.wait();
+}
+
 async function main() {
   const [owner] = await ethers.getSigners();
   const fibTrade = await ethers.deployContract('FibTrade');
