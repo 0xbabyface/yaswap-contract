@@ -9,8 +9,9 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./FibTradeStorage.sol";
 
 contract FibTrade is AccessControl, FibTradeStorage {
-    bytes32 public constant OwnerRole = keccak256("FibTrade.owner");
+    bytes32 public constant BossRole = keccak256("FibTrade.owner");
     bytes32 public constant AdminRole = keccak256("FibTrade.admin");
+    bytes32 public constant FinancialRole = keccak256("FibTrade.financial");
     bytes32 public constant SignerRole = keccak256("FibTrade.signer");
 
     address public constant NativeToken = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
@@ -42,7 +43,12 @@ contract FibTrade is AccessControl, FibTradeStorage {
 
     event FeeRatioSet(uint256 newFee, uint256 oldFee);
     event FeeDiscountSet(uint256 newDiscount, uint256 oldDiscount);
+    event RebateRatioSet(uint256 newRatio, uint256 oldRatio);
+    event RebateLevelSet(uint256 newLevel, uint256 oldLevel);
     event NativeTokenReceived(address indexed sender, uint256 amount);
+    event RewardDispatched(address indexed receiver, address indexed tokenAddress, uint256 amount);
+    event RewardClaimed(address indexed trader, address indexed receiver, address indexed tokenAddress, uint256 amount);
+    event OwnerRewardClaimed(address indexed owner, address indexed receiver, address indexed tokenAddress, uint256 amount);
 
     constructor() {}
 
@@ -50,31 +56,29 @@ contract FibTrade is AccessControl, FibTradeStorage {
         emit NativeTokenReceived(msg.sender, msg.value);
     }
 
-    function initialize(address _owner, address _admin, address _signer) external {
+    function initialize(address _owner, address _admin, address _signer, address _financial) external {
         require(!initialized, "init only once");
 
-        _grantRole(OwnerRole, _owner);
+        _grantRole(BossRole, _owner);
         _grantRole(AdminRole, _admin);
         _grantRole(SignerRole, _signer);
+        _grantRole(FinancialRole, _financial);
 
         feeRatio = 0.05E18;
         feeDiscount = 0.9E18;
 
+        rebateLevel = 3;
+        rebateRatio = 0.2E18;
+
         initialized = true;
-    }
-
-    function setFibRelationship(IFibRelationship relations) external onlyRole(AdminRole) {
-        require(address(relations) != address(0), "invalid address");
-
-        fibRealtions = relations;
     }
 
     function setRole(bytes32 role, address account, bool toGrant)
         external
-        onlyRole(OwnerRole)
+        onlyRole(BossRole)
     {
         require(
-            role == AdminRole || role == OwnerRole || role == SignerRole,
+            role == BossRole || role == AdminRole || role == SignerRole || role == FinancialRole,
             "not support role"
         );
 
@@ -85,43 +89,87 @@ contract FibTrade is AccessControl, FibTradeStorage {
         }
     }
 
+    // set fib relationship contract
+    function setFibRelationship(IFibRelationship relations) external onlyRole(AdminRole) {
+        require(address(relations) != address(0), "invalid address");
+
+        fibRealtions = relations;
+    }
+
+    // set fee ratio charged by system
     function setFeeRatio(uint256 ratio) external onlyRole(AdminRole) {
+        require(ratio <= RatioPrecision, "too much fee ratio");
         uint256 oldFee = feeRatio;
         feeRatio = ratio;
 
         emit FeeRatioSet(ratio, oldFee);
     }
-
+    // set discount for traders with invitation
     function setFeeDiscount(uint256 ratio) external onlyRole(AdminRole) {
+        require(ratio <= RatioPrecision, "too much fee discount ratio");
         uint256 oldFee = feeDiscount;
         feeDiscount = ratio;
 
         emit FeeDiscountSet(ratio, oldFee);
     }
-    /**
-    * @notice withdraw fee or any other tokens from this contract to recepient
-    * @param erc20Address erc20 token address
-    * @param amount how much token to withdraw
-    * @param recepient address to receive token
-    */
-    function withdraw(address erc20Address, uint256 amount, address recepient)
-        external
-        onlyRole(OwnerRole)
-    {
-        IERC20 erc20Token = IERC20(erc20Address);
+    // to set rebate ratio for fee
+    function setRebateRatio(uint256 ratio) external onlyRole(AdminRole) {
+        require(ratio <= RatioPrecision, "too much rebate fee ratio");
+        uint256 oldFee = rebateRatio;
+        rebateRatio = ratio;
 
-        require(erc20Token.balanceOf(address(this)) >= amount, "not enough balance");
-        require(recepient != address(0), "recepient is null address");
+        emit RebateRatioSet(ratio, oldFee);
+    }
+    // to set rebate level
+    function setRebateLevel(uint256 level) external onlyRole(AdminRole) {
+        uint256 oldLevel = rebateLevel;
 
-        erc20Token.transfer(recepient, amount);
+        rebateLevel = level;
+
+        emit RebateLevelSet(level, oldLevel);
     }
 
-    function withdrawNative(uint256 amount, address recepient)
+    /**
+    * @notice withdraw fee or any other tokens from this contract to recepient by financial
+    * @param tokenAddress erc20 token address
+    * @param recepient address to receive token
+    */
+    function ownerClaimRewards(address tokenAddress, address payable recepient)
         external
-        onlyRole(OwnerRole)
+        onlyRole(FinancialRole)
     {
-        require(address(this).balance >= amount, "not enough balance");
-        payable(recepient).transfer(amount);
+        uint256 amount = traderRewards[address(this)][tokenAddress];
+        require(amount > 0, "no pending rewards");
+
+        traderRewards[address(this)][tokenAddress] = 0;
+
+        if (tokenAddress == NativeToken) {
+            recepient.transfer(amount);
+        } else {
+            IERC20(tokenAddress).transfer(recepient, amount);
+        }
+
+        emit OwnerRewardClaimed(msg.sender, recepient, tokenAddress, amount);
+    }
+
+    /**
+    * @notice users claim their pending rewards
+    * @param tokenAddress reward token address
+    * @param recepient the address to receive rewards
+     */
+    function traderClaimRewards(address tokenAddress, address payable recepient) external {
+        uint256 amount = traderRewards[msg.sender][tokenAddress];
+        require(amount > 0, "no pending rewards");
+
+        traderRewards[msg.sender][tokenAddress] = 0;
+
+        if (tokenAddress == NativeToken) {
+            recepient.transfer(amount);
+        } else {
+            IERC20(tokenAddress).transfer(recepient, amount);
+        }
+
+        emit RewardClaimed(msg.sender, recepient, tokenAddress, amount);
     }
 
     /**
@@ -181,6 +229,14 @@ contract FibTrade is AccessControl, FibTradeStorage {
             actualOutput >= params.minOutAmount,
             "output less than required"
         );
+
+        if (feeAmount > 0) {
+            uint256 rebateAmount = feeAmount * rebateRatio / RatioPrecision;
+            (uint256 level, address[] memory fathers) = fibRealtions.getParents(msg.sender, rebateLevel);
+            dispatchRewards(level, fathers, params.fromToken, rebateAmount);
+
+            traderRewards[address(this)][params.fromToken] += (feeAmount - rebateAmount);
+        }
 
         emit TokenSwapped(
             msg.sender,
@@ -265,5 +321,24 @@ contract FibTrade is AccessControl, FibTradeStorage {
         toToken.transfer(params.receiver, actualOutput);
 
         return actualOutput;
+    }
+
+    function dispatchRewards(uint256 level, address[] memory receivers, address tokenAddress, uint256 feeAmount) internal {
+        uint256[] memory ratios = fibDispatchRatio(level);
+
+        for (uint256 i = 0; i < level; ++i) {
+            uint256 reward = feeAmount * ratios[i] / RatioPrecision;
+            traderRewards[receivers[i]][tokenAddress] += reward;
+            emit RewardDispatched(receivers[i], tokenAddress, reward);
+        }
+    }
+
+    function fibDispatchRatio(uint256 len) internal pure returns(uint256[] memory) {
+        uint256[] memory ratios = new uint256[](len);
+             if (len == 1) { ratios[0] = uint256(1E18); }
+        else if (len == 2) { ratios[0] = uint256(0.6E18); ratios[1] = uint256(0.4E18);}
+        else if (len == 3) { ratios[0] = uint256(0.5E18); ratios[1] = uint256(0.3E18); ratios[2] = uint256(0.2E18);}
+
+        return ratios;
     }
 }
