@@ -56,10 +56,10 @@ contract FibTrade is AccessControl, FibTradeStorage {
         emit NativeTokenReceived(msg.sender, msg.value);
     }
 
-    function initialize(address _owner, address _admin, address _signer, address _financial) external {
+    function initialize(address _boss, address _admin, address _signer, address _financial) external {
         require(!initialized, "init only once");
 
-        _grantRole(BossRole, _owner);
+        _grantRole(BossRole, _boss);
         _grantRole(AdminRole, _admin);
         _grantRole(SignerRole, _signer);
         _grantRole(FinancialRole, _financial);

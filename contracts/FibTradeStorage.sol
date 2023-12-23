@@ -14,5 +14,5 @@ contract FibTradeStorage {
 
     IFibRelationship public fibRealtions;
 
-    mapping(address => mapping(address => uint256)) traderRewards;
+    mapping(address => mapping(address => uint256)) public traderRewards;
  }
