@@ -338,7 +338,9 @@ contract FibTrade is AccessControl, FibTradeStorage {
              if (len == 1) { ratios[0] = uint256(1E18); }
         else if (len == 2) { ratios[0] = uint256(0.6E18); ratios[1] = uint256(0.4E18);}
         else if (len == 3) { ratios[0] = uint256(0.5E18); ratios[1] = uint256(0.3E18); ratios[2] = uint256(0.2E18);}
-
+        else {
+            // TODO: should revert here???
+        }
         return ratios;
     }
 }
