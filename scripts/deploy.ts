@@ -7,15 +7,29 @@ async function main() {
   const fibTrade = await ethers.deployContract("FibTrade");
   await fibTrade.waitForDeployment();
 
-  const initData = fibTrade.interface.encodeFunctionData("initialize", [owner.address, owner.address, "0xEA156a8A29fc61999C079BCc9906a7e0bd8c0E4E"]);
+  const proxyAdmin = owner;
+  const bossRole = owner;
+  const adminRole = owner;
+  const signerRole = owner;
+  const financialRole = owner;
 
-  const fibProxy = await ethers.deployContract("FibTradeProxy", [fibTrade.target, initData, owner.address]);
+  const initData = fibTrade.interface.encodeFunctionData("initialize", [bossRole.address, adminRole.address, signerRole.address, financialRole.address]);
+
+  const fibProxy = await ethers.deployContract("FibTradeProxy", [fibTrade.target, initData, proxyAdmin.address]);
   await fibProxy.waitForDeployment();
+
+  const fibRelation = await ethers.deployContract('FibRelationship', [fibProxy.target]);
+  await fibRelation.waitForDeployment();
+
+  const fibImpl = await ethers.getContractAt('FibTrade', fibProxy.target);
+  const tx = await fibImpl.setFibRelationship(fibRelation.target);
+  await tx.wait();
 
   console.log(`
     {
-      "fibTrade": "${fibTrade.target}",
-      "fibProxy": "${fibProxy.target}"
+      "fibRelation": "${fibRelation.target}",
+      "fibTrade"   : "${fibTrade.target}",
+      "fibProxy"   : "${fibProxy.target}"
     }
   `)
 }

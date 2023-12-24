@@ -51,7 +51,6 @@ describe("fib trade test", function () {
       fromTokenAmount,
       dexAddress: TDex.target,
       dexCalldata: calldata,
-      receiver: player1.address,
       approveAddress: TDex.target,
       minOutAmount: toTokenMinAmount,
       inviteCode,
@@ -79,7 +78,6 @@ describe("fib trade test", function () {
     swapParams.v = p.v;
     swapParams.r = p.r;
     swapParams.s = p.s;
-    swapParams.receiver = player2.address;
 
     let player1UsdtBalanceBefore = await fibTrade.traderRewards(player1.address, TestUSDT.target);
     let contractUsdtBalanceBefore = await fibTrade.traderRewards(fibTrade.target, TestUSDT.target);
@@ -106,7 +104,6 @@ describe("fib trade test", function () {
     swapParams.v = p.v;
     swapParams.r = p.r;
     swapParams.s = p.s;
-    swapParams.receiver = player3.address;
 
     player1UsdtBalanceBefore = await fibTrade.traderRewards(player1.address, TestUSDT.target);
     let player2UsdtBalanceBefore = await fibTrade.traderRewards(player2.address, TestUSDT.target);
@@ -139,7 +136,6 @@ describe("fib trade test", function () {
     swapParams.v = p.v;
     swapParams.r = p.r;
     swapParams.s = p.s;
-    swapParams.receiver = player4.address;
 
     player1UsdtBalanceBefore = await fibTrade.traderRewards(player1.address, TestUSDT.target);
     player2UsdtBalanceBefore = await fibTrade.traderRewards(player2.address, TestUSDT.target);

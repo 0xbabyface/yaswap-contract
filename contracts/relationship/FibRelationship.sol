@@ -17,7 +17,7 @@ contract FibRelationship is IFibRelationship {
     event RelationBound(address indexed father, address indexed son);
 
     mapping(address => R) relations;
-    address fibTrade;
+    address public fibTrade;
 
     modifier onlyFib() {
         require(msg.sender == fibTrade, "Relation: only fib trade");

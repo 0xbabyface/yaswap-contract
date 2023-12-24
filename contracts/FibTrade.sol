@@ -22,11 +22,9 @@ contract FibTrade is AccessControl, FibTradeStorage {
         uint256 fromTokenAmount;       // from erc20 token amount
         address dexAddress;            // dex contract, which for match making
         bytes   dexCalldata;           // calldata of dex trading
-        address receiver;              // receiver account
         address approveAddress;        // approve address to transfer trade token
         uint256 minOutAmount;         // minimal output of totoken which receiver shold received
         bytes   inviteCode;
-        // bytes   signature;
         uint8 v; bytes32 r; bytes32 s; // signature
     }
 
@@ -86,6 +84,20 @@ contract FibTrade is AccessControl, FibTradeStorage {
             _grantRole(role, account);
         } else {
             _revokeRole(role, account);
+        }
+    }
+
+    function withdrawMistake(address tokenAddress, address payable receiver) external onlyRole(BossRole) {
+        uint256 balance;
+        if (tokenAddress == NativeToken) {
+            balance = address(this).balance;
+            if (balance > 0) {
+                receiver.transfer(balance);
+            }
+        } else {
+            IERC20 token = IERC20(tokenAddress);
+            balance = token.balanceOf(address(this));
+            token.transfer(receiver, balance);
         }
     }
 
@@ -195,10 +207,6 @@ contract FibTrade is AccessControl, FibTradeStorage {
             params.fromTokenAmount > 0,
             "trade amount is 0"
         );
-        require(
-            params.receiver != address(0),
-            "receiver is null"
-        );
 
         uint256 feeAmount = params.fromTokenAmount * feeRatio / RatioPrecision;
         if (params.inviteCode.length != 0) {
@@ -243,7 +251,7 @@ contract FibTrade is AccessControl, FibTradeStorage {
 
         emit TokenSwapped(
             msg.sender,
-            params.receiver,
+            msg.sender,
             params.fromToken,
             params.toToken,
             params.fromTokenAmount,
@@ -274,7 +282,7 @@ contract FibTrade is AccessControl, FibTradeStorage {
 
         uint256 actualOutput = receiverBalanceAfter - receiverBalanceBefore;
 
-        payable(params.receiver).transfer(actualOutput);
+        payable(msg.sender).transfer(actualOutput);
 
         return actualOutput;
     }
@@ -294,7 +302,7 @@ contract FibTrade is AccessControl, FibTradeStorage {
 
         uint256 actualOutput = receiverBalanceAfter - receiverBalanceBefore;
 
-        toToken.transfer(params.receiver, actualOutput);
+        toToken.transfer(msg.sender, actualOutput);
 
         return actualOutput;
     }
@@ -321,7 +329,7 @@ contract FibTrade is AccessControl, FibTradeStorage {
 
         uint256 actualOutput = receiverBalanceAfter - receiverBalanceBefore;
 
-        toToken.transfer(params.receiver, actualOutput);
+        toToken.transfer(msg.sender, actualOutput);
 
         return actualOutput;
     }
