@@ -36,7 +36,8 @@ contract FibTrade is AccessControl, FibTradeStorage {
         uint256 fromTokenAmount,
         uint256 minOutAmount,
         uint256 actualOutput,
-        uint256 feeAmount
+        uint256 feeAmount,
+        bool    isCross
     );
 
     event FeeRatioSet(uint256 newFee, uint256 oldFee);
@@ -202,7 +203,7 @@ contract FibTrade is AccessControl, FibTradeStorage {
     * @notice to execute the swap operation
     * @param params a struct of trading pair
      */
-    function swap(SwapParams calldata params) external payable {
+    function swap(SwapParams calldata params, bool isCross) external payable {
         require(
             params.fromTokenAmount > 0,
             "trade amount is 0"
@@ -224,17 +225,17 @@ contract FibTrade is AccessControl, FibTradeStorage {
 
         uint256 actualOutput;
         if (params.fromToken == NativeToken && params.toToken != NativeToken) {
-            actualOutput = swapNativeToErc20(params, feeAmount);
+            actualOutput = swapNativeToErc20(params, feeAmount, isCross);
         } else if (params.fromToken != NativeToken && params.toToken == NativeToken) {
-            actualOutput = swapErc20ToNative(params, feeAmount);
+            actualOutput = swapErc20ToNative(params, feeAmount, isCross);
         } else if (params.fromToken != NativeToken && params.toToken != NativeToken) {
-            actualOutput = swapErc20ToErc20(params, feeAmount);
+            actualOutput = swapErc20ToErc20(params, feeAmount, isCross);
         } else {
             require(false, "not swap native to native");
         }
 
         require(
-            actualOutput >= params.minOutAmount,
+            isCross || actualOutput >= params.minOutAmount,
             "output less than required"
         );
 
@@ -257,11 +258,12 @@ contract FibTrade is AccessControl, FibTradeStorage {
             params.fromTokenAmount,
             params.minOutAmount,
             actualOutput,
-            feeAmount
+            feeAmount,
+            isCross
         );
     }
 
-    function swapErc20ToNative(SwapParams calldata params, uint256 feeAmount) internal returns(uint256) {
+    function swapErc20ToNative(SwapParams calldata params, uint256 feeAmount, bool isCross) internal returns(uint256) {
         require(
             params.approveAddress != address(0),
             "approve address is null"
@@ -282,12 +284,12 @@ contract FibTrade is AccessControl, FibTradeStorage {
 
         uint256 actualOutput = receiverBalanceAfter - receiverBalanceBefore;
 
-        payable(msg.sender).transfer(actualOutput);
+        if (!isCross) payable(msg.sender).transfer(actualOutput);
 
         return actualOutput;
     }
 
-    function swapNativeToErc20(SwapParams calldata params, uint256 feeAmount) internal returns(uint256) {
+    function swapNativeToErc20(SwapParams calldata params, uint256 feeAmount, bool isCross) internal returns(uint256) {
 
         require(msg.value >= params.fromTokenAmount + feeAmount, "paied not enough value");
 
@@ -302,12 +304,12 @@ contract FibTrade is AccessControl, FibTradeStorage {
 
         uint256 actualOutput = receiverBalanceAfter - receiverBalanceBefore;
 
-        toToken.transfer(msg.sender, actualOutput);
+        if (!isCross) toToken.transfer(msg.sender, actualOutput);
 
         return actualOutput;
     }
 
-    function swapErc20ToErc20(SwapParams calldata params, uint256 feeAmount) internal returns(uint256) {
+    function swapErc20ToErc20(SwapParams calldata params, uint256 feeAmount, bool isCross) internal returns(uint256) {
         require(
             params.approveAddress != address(0),
             "approve address is null"
@@ -329,7 +331,7 @@ contract FibTrade is AccessControl, FibTradeStorage {
 
         uint256 actualOutput = receiverBalanceAfter - receiverBalanceBefore;
 
-        toToken.transfer(msg.sender, actualOutput);
+        if (!isCross) toToken.transfer(msg.sender, actualOutput);
 
         return actualOutput;
     }

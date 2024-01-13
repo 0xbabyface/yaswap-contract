@@ -30,20 +30,6 @@ async function main() {
   let tx = await fibProxy.connect(owner).setImplementation(fibTrade.target, "0x");
   await tx.wait();
 
-  fibTrade = await ethers.getContractAt('FibTrade', config.polygon.fibProxy);
-
-  tx = await fibTrade.setRebateLevel(3);
-  await tx.wait();
-
-  tx = await fibTrade.setRebateRatio(ethers.parseEther("0.2"));
-  await tx.wait();
-
-  const Relationship = await ethers.deployContract('FibRelationship', [config.polygon.fibProxy]);
-  await Relationship.waitForDeployment();
-
-  tx = await fibTrade.setFibRelationship(Relationship.target);
-  await tx.wait();
-
   console.log(`upgraded:  ${tx.hash}`);
 }
 

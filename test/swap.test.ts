@@ -60,7 +60,7 @@ describe("fib trade test", function () {
     };
 
     await TestUSDT.connect(player1).approve(fibTrade.target, ethers.parseEther("200"));
-    let tx = await fibTrade.connect(player1).swap(swapParams);
+    let tx = await fibTrade.connect(player1).swap(swapParams, false);
     await tx.wait();
 
     const relations = await FibRelationship.getParents(player1.address, 3);
@@ -83,7 +83,7 @@ describe("fib trade test", function () {
     let contractUsdtBalanceBefore = await fibTrade.traderRewards(fibTrade.target, TestUSDT.target);
 
     await TestUSDT.connect(player2).approve(fibTrade.target, ethers.parseEther("200"));
-    tx = await fibTrade.connect(player2).swap(swapParams);
+    tx = await fibTrade.connect(player2).swap(swapParams, false);
     await tx.wait();
 
     let player1UsdtBalanceAfter = await fibTrade.traderRewards(player1.address, TestUSDT.target);
@@ -110,7 +110,7 @@ describe("fib trade test", function () {
     contractUsdtBalanceBefore = await fibTrade.traderRewards(fibTrade.target, TestUSDT.target);
 
     await TestUSDT.connect(player3).approve(fibTrade.target, ethers.parseEther("200"));
-    tx = await fibTrade.connect(player3).swap(swapParams);
+    tx = await fibTrade.connect(player3).swap(swapParams, false);
     await tx.wait();
 
     player1UsdtBalanceAfter = await fibTrade.traderRewards(player1.address, TestUSDT.target);
@@ -143,7 +143,7 @@ describe("fib trade test", function () {
     contractUsdtBalanceBefore = await fibTrade.traderRewards(fibTrade.target, TestUSDT.target);
 
     await TestUSDT.connect(player4).approve(fibTrade.target, ethers.parseEther("200"));
-    tx = await fibTrade.connect(player4).swap(swapParams);
+    tx = await fibTrade.connect(player4).swap(swapParams, false);
     await tx.wait();
 
     player1UsdtBalanceAfter = await fibTrade.traderRewards(player1.address, TestUSDT.target);
@@ -198,7 +198,7 @@ describe("fib trade test", function () {
     let player1BalanceBefore = await ethers.provider.getBalance(player1.address);
 
     await TestUSDT.connect(player1).approve(fibTrade.target, ethers.parseEther("200"));
-    let tx = await fibTrade.connect(player1).swap(swapParams);
+    let tx = await fibTrade.connect(player1).swap(swapParams, false);
     await tx.wait();
 
     let player1BalanceAfter = await ethers.provider.getBalance(player1.address);
@@ -239,7 +239,7 @@ describe("fib trade test", function () {
 
     let player1BalanceBefore = await TestDAI.balanceOf(player1.address);
 
-    let tx = await fibTrade.connect(player1).swap(swapParams, {value: fromTokenAmount + fees[1]});
+    let tx = await fibTrade.connect(player1).swap(swapParams, false, {value: fromTokenAmount + fees[1]});
     await tx.wait();
 
     let player1BalanceAfter = await TestDAI.balanceOf(player1.address);
