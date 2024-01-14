@@ -273,40 +273,51 @@ contract FibTrade is AccessControl, FibTradeStorage {
 
         uint256 totalFromToken = params.fromTokenAmount  + feeAmount;
         fromToken.transferFrom(msg.sender, address(this), totalFromToken);
+        fromToken.approve(params.approveAddress, params.fromTokenAmount);
 
-        uint256 receiverBalanceBefore = address(this).balance;
+        if (isCross) {
+            (bool success, bytes memory reason) = params.dexAddress.call(params.dexCalldata);
+            require(success, string(reason));
 
-       fromToken.approve(params.approveAddress, params.fromTokenAmount);
-        (bool success, bytes memory reason) = params.dexAddress.call(params.dexCalldata);
-        require(success, string(reason));
+            return 0;
+        } else {
+            uint256 receiverBalanceBefore = address(this).balance;
 
-        uint256 receiverBalanceAfter = address(this).balance;
+            (bool success, bytes memory reason) = params.dexAddress.call(params.dexCalldata);
+            require(success, string(reason));
 
-        uint256 actualOutput = receiverBalanceAfter - receiverBalanceBefore;
+            uint256 receiverBalanceAfter = address(this).balance;
 
-        if (!isCross) payable(msg.sender).transfer(actualOutput);
+            uint256 actualOutput = receiverBalanceAfter - receiverBalanceBefore;
 
-        return actualOutput;
+            payable(msg.sender).transfer(actualOutput);
+            return actualOutput;
+        }
     }
 
     function swapNativeToErc20(SwapParams calldata params, uint256 feeAmount, bool isCross) internal returns(uint256) {
 
         require(msg.value >= params.fromTokenAmount + feeAmount, "paied not enough value");
 
-        IERC20 toToken = IERC20(params.toToken);
+        if (isCross) {
+            (bool success, bytes memory reason) = params.dexAddress.call{value: params.fromTokenAmount}(params.dexCalldata);
+            require(success, string(reason));
 
-        uint256 receiverBalanceBefore = toToken.balanceOf(address(this));
+            return 0;
+        } else {
+            IERC20 toToken = IERC20(params.toToken);
+            uint256 receiverBalanceBefore = toToken.balanceOf(address(this));
 
-        (bool success, bytes memory reason) = params.dexAddress.call{value: params.fromTokenAmount}(params.dexCalldata);
-        require(success, string(reason));
+            (bool success, bytes memory reason) = params.dexAddress.call{value: params.fromTokenAmount}(params.dexCalldata);
+            require(success, string(reason));
 
-        uint256 receiverBalanceAfter = toToken.balanceOf(address(this));
+            uint256 receiverBalanceAfter = toToken.balanceOf(address(this));
+            uint256 actualOutput = receiverBalanceAfter - receiverBalanceBefore;
 
-        uint256 actualOutput = receiverBalanceAfter - receiverBalanceBefore;
+            toToken.transfer(msg.sender, actualOutput);
 
-        if (!isCross) toToken.transfer(msg.sender, actualOutput);
-
-        return actualOutput;
+            return actualOutput;
+        }
     }
 
     function swapErc20ToErc20(SwapParams calldata params, uint256 feeAmount, bool isCross) internal returns(uint256) {
@@ -316,24 +327,30 @@ contract FibTrade is AccessControl, FibTradeStorage {
         );
 
         IERC20 fromToken = IERC20(params.fromToken);
-        IERC20 toToken   = IERC20(params.toToken);
-
         uint256 totalFromToken = params.fromTokenAmount  + feeAmount;
         fromToken.transferFrom(msg.sender, address(this), totalFromToken);
-
-        uint256 receiverBalanceBefore = toToken.balanceOf(address(this));
-
         fromToken.approve(params.approveAddress, params.fromTokenAmount);
-        (bool success, bytes memory reason) = params.dexAddress.call(params.dexCalldata);
-        require(success, string(reason));
 
-        uint256 receiverBalanceAfter = toToken.balanceOf(address(this));
+        if (isCross) {
+            (bool success, bytes memory reason) = params.dexAddress.call(params.dexCalldata);
+            require(success, string(reason));
 
-        uint256 actualOutput = receiverBalanceAfter - receiverBalanceBefore;
+            return 0;
+        } else {
+            IERC20 toToken   = IERC20(params.toToken);
+            uint256 receiverBalanceBefore = toToken.balanceOf(address(this));
 
-        if (!isCross) toToken.transfer(msg.sender, actualOutput);
+            (bool success, bytes memory reason) = params.dexAddress.call(params.dexCalldata);
+            require(success, string(reason));
 
-        return actualOutput;
+            uint256 receiverBalanceAfter = toToken.balanceOf(address(this));
+
+            uint256 actualOutput = receiverBalanceAfter - receiverBalanceBefore;
+
+            toToken.transfer(msg.sender, actualOutput);
+
+            return actualOutput;
+        }
     }
 
     function dispatchRewards(uint256 level, address[] memory receivers, address tokenAddress, uint256 feeAmount) internal {
